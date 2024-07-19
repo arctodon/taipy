@@ -20,3 +20,4 @@ def _get_version():
         if vext := version.get("ext"):
             version_string = f"{version_string}.{vext}"
     return version_string
+
