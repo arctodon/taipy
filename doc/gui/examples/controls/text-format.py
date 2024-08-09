@@ -8,8 +8,17 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 # an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
+# -----------------------------------------------------------------------------------------
+# To execute this script, make sure that the taipy-gui package is installed in your
+# Python environment and run:
+#     python <script>
+# -----------------------------------------------------------------------------------------
+from taipy.gui import Gui
 
-from sqlalchemy.orm import declarative_base, registry
+pi = 3.14159265358979
 
-_SQLBaseModel = declarative_base()
-mapper_registry = registry()
+page = """
+π≈<|{pi}|text|format=%.3f|>
+"""
+
+Gui(page).run()

@@ -37,6 +37,7 @@ from taipy.core import (
 from taipy.core import get as core_get
 from taipy.core.config import Config
 from taipy.core.data._tabular_datanode_mixin import _TabularDataNodeMixin
+from taipy.core.reason import ReasonCollection
 from taipy.gui._warnings import _warn
 from taipy.gui.gui import _DoNotUpdate
 from taipy.gui.utils import _is_boolean, _is_true, _TaipyBase
@@ -54,6 +55,9 @@ class _EntityType(Enum):
     SEQUENCE = 2
     DATANODE = 3
 
+
+def _get_reason(rc: ReasonCollection, message: str):
+    return "" if rc else f"{message}: {rc.reasons}"
 
 class _GuiCoreScenarioAdapter(_TaipyBase):
     __INNER_PROPS = ["name"]
@@ -84,8 +88,8 @@ class _GuiCoreScenarioAdapter(_TaipyBase):
                             (
                                 s.get_simple_label(),
                                 [t.id for t in s.tasks.values()] if hasattr(s, "tasks") else [],
-                                "" if (reason := is_submittable(s)) else f"Sequence not submittable: {reason.reasons}",
-                                is_editable(s),
+                                _get_reason(is_submittable(s), "Sequence not submittable"),
+                                _get_reason(is_editable(s), "Sequence not editable"),
                             )
                             for s in scenario.sequences.values()
                         ]
@@ -95,11 +99,11 @@ class _GuiCoreScenarioAdapter(_TaipyBase):
                         if hasattr(scenario, "tasks")
                         else {},
                         list(scenario.properties.get("authorized_tags", [])) if scenario.properties else [],
-                        is_deletable(scenario),
-                        is_promotable(scenario),
-                        "" if (reason := is_submittable(scenario)) else f"Scenario not submittable: {reason.reasons}",
-                        is_readable(scenario),
-                        is_editable(scenario),
+                        _get_reason(is_deletable(scenario), "Scenario not deletable"),
+                        _get_reason(is_promotable(scenario), "Scenario not promotable"),
+                        _get_reason(is_submittable(scenario), "Scenario not submittable"),
+                        _get_reason(is_readable(scenario), "Scenario not readable"),
+                        _get_reason(is_editable(scenario), "Scenario not editable"),
                     ]
             except Exception as e:
                 _warn(f"Access to scenario ({data.id if hasattr(data, 'id') else 'No_id'}) failed", e)
@@ -221,8 +225,8 @@ class _GuiCoreDatanodeAdapter(_TaipyBase):
                         self.__get_data(datanode),
                         datanode._edit_in_progress,
                         datanode._editor_id,
-                        is_readable(datanode),
-                        is_editable(datanode),
+                        _get_reason(is_readable(datanode), "Datanode not readable"),
+                        _get_reason(is_editable(datanode), "Datanode not editable"),
                     ]
             except Exception as e:
                 _warn(f"Access to datanode ({data.id if hasattr(data, 'id') else 'No_id'}) failed", e)
@@ -246,13 +250,17 @@ _operators: t.Dict[str, t.Callable] = {
 
 
 def _filter_value(base_val: t.Any, operator: t.Callable, val: t.Any, adapt: t.Optional[t.Callable] = None):
-    if isinstance(base_val, (datetime, date)):
-        base_val = base_val.isoformat()
-    val = adapt(base_val, val) if adapt else val
-    if isinstance(base_val, str) and isinstance(val, str):
-        base_val = base_val.lower()
-        val = val.lower()
+    if base_val is None:
+        base_val = "" if isinstance(val, str) else 0
+    else:
+        if isinstance(base_val, (datetime, date)):
+            base_val = base_val.isoformat()
+        val = adapt(base_val, val) if adapt else val
+        if isinstance(base_val, str) and isinstance(val, str):
+            base_val = base_val.lower()
+            val = val.lower()
     return operator(base_val, val)
+
 
 def _adapt_type(base_val, val):
     # try casting the filter to the value
@@ -266,6 +274,7 @@ def _adapt_type(base_val, val):
                 # forget it
                 pass
     return val
+
 
 def _filter_iterable(list_val: Iterable, operator: t.Callable, val: t.Any):
     if operator is contains:
@@ -285,17 +294,19 @@ def _invoke_action(
 ) -> bool:
     if ent is None:
         return False
-    if not (col_fn or col).isidentifier():
-        _warn(f'Error filtering with "{col_fn or col}": not a valid Python identifier.')
-        return True
     try:
         if col_type == "any":
             # when a property is not found, return True only if action is not equals
             if not is_dn and not hasattr(ent, "properties") or not ent.properties.get(col_fn or col):
                 return action == "!="
         if op := _operators.get(action):
-            cur_val = attrgetter(col_fn or col)(ent)
-            cur_val = cur_val() if col_fn else cur_val
+            if callable(col):
+                cur_val = col(ent)
+            else:
+                cur_val = attrgetter(col_fn or col)(ent)
+                cur_val = cur_val() if col_fn else cur_val
+            if isinstance(cur_val, DataNode):
+                cur_val = cur_val.read()
             if not isinstance(cur_val, str) and isinstance(cur_val, Iterable):
                 return _filter_iterable(cur_val, op, val)
             return _filter_value(cur_val, op, val, _adapt_type)
@@ -341,26 +352,76 @@ def _get_entity_property(col: str, *types: t.Type):
     return sort_key
 
 
-def _get_datanode_property(attr: str):
-    if (parts := attr.split(".")) and len(parts) > 1:
-        return parts[1]
-    return None
+@dataclass
+class _Filter(_DoNotUpdate):
+    label: str
+    property_type: t.Optional[t.Type]
+
+    def get_property(self):
+        return self.label
+
+    def get_type(self):
+        if self.property_type is bool:
+            return "boolean"
+        elif self.property_type is int or self.property_type is float:
+            return "number"
+        elif self.property_type is datetime or self.property_type is date:
+            return "date"
+        elif self.property_type is str:
+            return "str"
+        return "any"
+
+
+@dataclass
+class ScenarioFilter(_Filter):
+    property_id: str
+
+    def get_property(self):
+        return self.property_id
+
+
+@dataclass
+class DataNodeScenarioFilter(_Filter):
+    datanode_config_id: str
+    property_id: str
+
+    def get_property(self):
+        return f"{self.datanode_config_id}.{self.property_id}"
+
+
+_CUSTOM_PREFIX = "fn:"
+
+
+@dataclass
+class CustomScenarioFilter(_Filter):
+    filter_function: t.Callable[[Scenario], t.Any]
+
+    def __post_init__(self):
+        if self.filter_function.__name__ == "<lambda>":
+            raise TypeError("ScenarioCustomFilter does not support lambda functions.")
+        mod = self.filter_function.__module__
+        self.module = mod if isinstance(mod, str) else mod.__name__
+
+    def get_property(self):
+        return f"{_CUSTOM_PREFIX}{self.module}:{self.filter_function.__name__}"
+
+    @staticmethod
+    def _get_custom(col: str) -> t.Optional[t.List[str]]:
+        return col[len(_CUSTOM_PREFIX) :].split(":") if col.startswith(_CUSTOM_PREFIX) else None
+
+
+@dataclass
+class DataNodeFilter(_Filter):
+    property_id: str
+
+    def get_property(self):
+        return self.property_id
 
 
 class _GuiCoreProperties(ABC):
     @staticmethod
     @abstractmethod
-    def get_type(attr: str):
-        raise NotImplementedError
-
-    @staticmethod
-    @abstractmethod
-    def get_col_name(attr: str):
-        raise NotImplementedError
-
-    @staticmethod
-    @abstractmethod
-    def get_default_list():
+    def get_default_list() -> t.List[_Filter]:
         raise NotImplementedError
 
     @staticmethod
@@ -380,18 +441,32 @@ class _GuiCoreProperties(ABC):
                 return None
         if isinstance(data, str):
             data = data.split(";")
+        if isinstance(data, _Filter):
+            data = (data,)
         if isinstance(data, (list, tuple)):
-            flist = []
+            flist: t.List[_Filter] = []  # type: ignore[annotation-unchecked]
             for f in data:
-                if f == "*":
-                    flist.extend(self.get_default_list())
-                else:
+                if isinstance(f, str):
+                    f = f.strip()
+                    if f == "*":
+                        flist.extend(p.filter for p in self.get_default_list())
+                    elif f:
+                        flist.append(
+                            next((p.filter for p in self.get_default_list() if p.get_property() == f), _Filter(f))
+                        )
+                elif isinstance(f, _Filter):
                     flist.append(f)
             return json.dumps(
                 [
-                    (attr, self.get_type(attr), self.get_enums().get(attr)) if self.full_desc() else (attr,)
+                    (
+                        attr.label,
+                        attr.get_property(),
+                        attr.get_type(),
+                        self.get_enums().get(attr.get_property()),
+                    )
+                    if self.full_desc()
+                    else (attr.label, attr.get_property())
                     for attr in flist
-                    if attr
                 ]
             )
         return None
@@ -399,63 +474,57 @@ class _GuiCoreProperties(ABC):
 
 @dataclass(frozen=True)
 class _GuiCorePropDesc:
-    attr: str
-    type: str
+    filter: _Filter
     extended: bool = False
     for_sort: bool = False
 
 
-_EMPTY_PROP_DESC = _GuiCorePropDesc("", "any")
-
-
 class _GuiCoreScenarioProperties(_GuiCoreProperties):
-    _SC_PROPS: t.Dict[str, _GuiCorePropDesc] = {
-        "Config id": _GuiCorePropDesc("config_id", "string", for_sort=True),
-        "Label": _GuiCorePropDesc("get_simple_label()", "string", for_sort=True),
-        "Creation date": _GuiCorePropDesc("creation_date", "date", for_sort=True),
-        "Cycle label": _GuiCorePropDesc("cycle.name", "string", extended=True),
-        "Cycle start": _GuiCorePropDesc("cycle.start_date", "date", extended=True),
-        "Cycle end": _GuiCorePropDesc("cycle.end_date", "date", extended=True),
-        "Primary": _GuiCorePropDesc("is_primary", "boolean", extended=True),
-        "Tags": _GuiCorePropDesc("tags", "string"),
-    }
-    __DN_PROPS = {
-        "Up to date": _GuiCorePropDesc("is_up_to_date", "boolean"),
-        "Valid": _GuiCorePropDesc("is_valid", "boolean"),
-        "Last edit date": _GuiCorePropDesc("last_edit_date", "date"),
-    }
+    _SC_PROPS: t.List[_GuiCorePropDesc] = [
+        _GuiCorePropDesc(ScenarioFilter("Config id", str, "config_id"), for_sort=True),
+        _GuiCorePropDesc(ScenarioFilter("Label", str, "get_simple_label()"), for_sort=True),
+        _GuiCorePropDesc(ScenarioFilter("Creation date", datetime, "creation_date"), for_sort=True),
+        _GuiCorePropDesc(ScenarioFilter("Cycle label", str, "cycle.name"), extended=True),
+        _GuiCorePropDesc(ScenarioFilter("Cycle start", datetime, "cycle.start_date"), extended=True),
+        _GuiCorePropDesc(ScenarioFilter("Cycle end", datetime, "cycle.end_date"), extended=True),
+        _GuiCorePropDesc(ScenarioFilter("Primary", bool, "is_primary"), extended=True),
+        _GuiCorePropDesc(ScenarioFilter("Tags", str, "tags")),
+    ]
     __ENUMS = None
     __SC_CYCLE = None
 
     @staticmethod
-    def get_type(attr: str):
-        if prop := _get_datanode_property(attr):
-            return _GuiCoreScenarioProperties.__DN_PROPS.get(prop, _EMPTY_PROP_DESC).type
-        return _GuiCoreScenarioProperties._SC_PROPS.get(attr, _EMPTY_PROP_DESC).type
-
-    @staticmethod
-    def get_col_name(attr: str):
-        if prop := _get_datanode_property(attr):
-            return (
-                attr.split(".")[0]
-                + f".{_GuiCoreScenarioProperties.__DN_PROPS.get(prop, _EMPTY_PROP_DESC).attr or prop}"
+    def is_datanode_property(attr: str):
+        if "." not in attr:
+            return False
+        return (
+            next(
+                (
+                    p
+                    for p in _GuiCoreScenarioProperties._SC_PROPS
+                    if t.cast(ScenarioFilter, p.filter).property_id == attr
+                ),
+                None,
             )
-        return _GuiCoreScenarioProperties._SC_PROPS.get(attr, _EMPTY_PROP_DESC).attr or attr
+            is None
+        )
 
     def get_enums(self):
+        if not self.full_desc():
+            return {}
         if _GuiCoreScenarioProperties.__ENUMS is None:
             _GuiCoreScenarioProperties.__ENUMS = {
                 k: v
                 for k, v in {
-                    "Config id": [c for c in Config.scenarios.keys() if c != "default"],
-                    "Tags": list(
+                    "config_id": [c for c in Config.scenarios.keys() if c != "default"],
+                    "tags": list(
                         {t for s in Config.scenarios.values() for t in s.properties.get("authorized_tags", [])}
                     ),
                 }.items()
                 if len(v)
             }
 
-        return _GuiCoreScenarioProperties.__ENUMS if self.full_desc() else {}
+        return _GuiCoreScenarioProperties.__ENUMS
 
     @staticmethod
     def has_cycle():
@@ -467,10 +536,8 @@ class _GuiCoreScenarioProperties(_GuiCoreProperties):
 
 
 class _GuiCoreScenarioFilter(_GuiCoreScenarioProperties, _TaipyBase):
-    DEFAULT = list(_GuiCoreScenarioProperties._SC_PROPS.keys())
-    DEFAULT_NO_CYCLE = [
-        p[0] for p in filter(lambda prop: not prop[1].extended, _GuiCoreScenarioProperties._SC_PROPS.items())
-    ]
+    DEFAULT = _GuiCoreScenarioProperties._SC_PROPS
+    DEFAULT_NO_CYCLE = list(filter(lambda prop: not prop.extended, _GuiCoreScenarioProperties._SC_PROPS))
 
     @staticmethod
     def full_desc():
@@ -490,13 +557,10 @@ class _GuiCoreScenarioFilter(_GuiCoreScenarioProperties, _TaipyBase):
 
 
 class _GuiCoreScenarioSort(_GuiCoreScenarioProperties, _TaipyBase):
-    DEFAULT = [p[0] for p in filter(lambda prop: prop[1].for_sort, _GuiCoreScenarioProperties._SC_PROPS.items())]
-    DEFAULT_NO_CYCLE = [
-        p[0]
-        for p in filter(
-            lambda prop: prop[1].for_sort and not prop[1].extended, _GuiCoreScenarioProperties._SC_PROPS.items()
-        )
-    ]
+    DEFAULT = list(filter(lambda prop: prop.for_sort, _GuiCoreScenarioProperties._SC_PROPS))
+    DEFAULT_NO_CYCLE = list(
+        filter(lambda prop: prop.for_sort and not prop.extended, _GuiCoreScenarioProperties._SC_PROPS)
+    )
 
     @staticmethod
     def full_desc():
@@ -516,26 +580,18 @@ class _GuiCoreScenarioSort(_GuiCoreScenarioProperties, _TaipyBase):
 
 
 class _GuiCoreDatanodeProperties(_GuiCoreProperties):
-    _DN_PROPS: t.Dict[str, _GuiCorePropDesc] = {
-        "Config id": _GuiCorePropDesc("config_id", "string", for_sort=True),
-        "Label": _GuiCorePropDesc("get_simple_label()", "string", for_sort=True),
-        "Up to date": _GuiCorePropDesc("is_up_to_date", "boolean"),
-        "Last edit date": _GuiCorePropDesc("last_edit_date", "date", for_sort=True),
-        "Input": _GuiCorePropDesc("is_input", "boolean"),
-        "Output": _GuiCorePropDesc("is_output", "boolean"),
-        "Intermediate": _GuiCorePropDesc("is_intermediate", "boolean"),
-        "Expiration date": _GuiCorePropDesc("expiration_date", "date", extended=True, for_sort=True),
-        "Expired": _GuiCorePropDesc("is_expired", "boolean", extended=True),
-    }
+    _DN_PROPS: t.List[_GuiCorePropDesc] = [
+        _GuiCorePropDesc(DataNodeFilter("Config id", str, "config_id"), for_sort=True),
+        _GuiCorePropDesc(DataNodeFilter("Label", str, "get_simple_label()"), for_sort=True),
+        _GuiCorePropDesc(DataNodeFilter("Up to date", bool, "is_up_to_date")),
+        _GuiCorePropDesc(DataNodeFilter("Last edit date", datetime, "last_edit_date"), for_sort=True),
+        _GuiCorePropDesc(DataNodeFilter("Input", bool, "is_input")),
+        _GuiCorePropDesc(DataNodeFilter("Output", bool, "is_output")),
+        _GuiCorePropDesc(DataNodeFilter("Intermediate", bool, "is_intermediate")),
+        _GuiCorePropDesc(DataNodeFilter("Expiration date", datetime, "expiration_date"), extended=True, for_sort=True),
+        _GuiCorePropDesc(DataNodeFilter("Expired", bool, "is_expired"), extended=True),
+    ]
     __DN_VALIDITY = None
-
-    @staticmethod
-    def get_type(attr: str):
-        return _GuiCoreDatanodeProperties._DN_PROPS.get(attr, _EMPTY_PROP_DESC).type
-
-    @staticmethod
-    def get_col_name(attr: str):
-        return _GuiCoreDatanodeProperties._DN_PROPS.get(attr, _EMPTY_PROP_DESC).attr or attr
 
     @staticmethod
     def has_validity():
@@ -547,10 +603,8 @@ class _GuiCoreDatanodeProperties(_GuiCoreProperties):
 
 
 class _GuiCoreDatanodeFilter(_GuiCoreDatanodeProperties, _TaipyBase):
-    DEFAULT = list(_GuiCoreDatanodeProperties._DN_PROPS.keys())
-    DEFAULT_NO_VALIDITY = [
-        p[0] for p in filter(lambda prop: not prop[1].extended, _GuiCoreDatanodeProperties._DN_PROPS.items())
-    ]
+    DEFAULT = _GuiCoreDatanodeProperties._DN_PROPS
+    DEFAULT_NO_VALIDITY = list(filter(lambda prop: not prop.extended, _GuiCoreDatanodeProperties._DN_PROPS))
 
     @staticmethod
     def full_desc():
@@ -570,13 +624,10 @@ class _GuiCoreDatanodeFilter(_GuiCoreDatanodeProperties, _TaipyBase):
 
 
 class _GuiCoreDatanodeSort(_GuiCoreDatanodeProperties, _TaipyBase):
-    DEFAULT = [p[0] for p in filter(lambda prop: prop[1].for_sort, _GuiCoreDatanodeProperties._DN_PROPS.items())]
-    DEFAULT_NO_VALIDITY = [
-        p[0]
-        for p in filter(
-            lambda prop: prop[1].for_sort and not prop[1].extended, _GuiCoreDatanodeProperties._DN_PROPS.items()
-        )
-    ]
+    DEFAULT = list(filter(lambda prop: prop.for_sort, _GuiCoreDatanodeProperties._DN_PROPS))
+    DEFAULT_NO_VALIDITY = list(
+        filter(lambda prop: prop.for_sort and not prop.extended, _GuiCoreDatanodeProperties._DN_PROPS)
+    )
 
     @staticmethod
     def full_desc():

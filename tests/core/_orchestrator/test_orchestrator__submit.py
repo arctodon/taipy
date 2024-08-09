@@ -10,6 +10,7 @@
 # specific language governing permissions and limitations under the License.
 
 from datetime import datetime, timedelta
+from time import sleep
 from unittest import mock
 
 import freezegun
@@ -17,7 +18,7 @@ import pytest
 
 from taipy import Scenario, Scope, Task
 from taipy.config import Config
-from taipy.core import taipy
+from taipy.core import Core, taipy
 from taipy.core._orchestrator._orchestrator import _Orchestrator
 from taipy.core._orchestrator._orchestrator_factory import _OrchestratorFactory
 from taipy.core.config import JobConfig
@@ -27,6 +28,7 @@ from taipy.core.scenario._scenario_manager import _ScenarioManager
 from taipy.core.submission._submission_manager_factory import _SubmissionManagerFactory
 from taipy.core.submission.submission_status import SubmissionStatus
 from taipy.core.task._task_manager import _TaskManager
+from tests.core.utils import assert_true_after_time
 
 
 def nothing(*args, **kwargs):
@@ -53,6 +55,7 @@ def test_submit_scenario_development_mode():
     scenario = create_scenario()
     scenario.dn_0.write(0)  # input data is made ready
     orchestrator = _OrchestratorFactory._build_orchestrator()
+    _OrchestratorFactory._build_dispatcher()
 
     submit_time = datetime.now() + timedelta(seconds=1)  # +1 to ensure the edit time of dn_0 is before the submit time
     with freezegun.freeze_time(submit_time):
@@ -320,7 +323,7 @@ def test_submit_scenario_with_callbacks_and_force_and_wait():
         assert jobs[2]._subscribers[0].__code__ == nothing.__code__
         assert jobs[2]._subscribers[1].__code__ == _Orchestrator._update_submission_status.__code__
         assert jobs[2]._subscribers[2].__code__ == _Orchestrator._on_status_change.__code__
-        mck.assert_called_once_with(jobs, timeout=5)
+        mck.assert_called_once_with(jobs, 5)
 
 
 def test_submit_sequence_development_mode():
@@ -475,7 +478,7 @@ def test_submit_sequence_with_callbacks_and_force_and_wait():
 
     with mock.patch("taipy.core._orchestrator._orchestrator._Orchestrator._wait_until_job_finished") as mck:
         jobs = orchestrator.submit(scenario, callbacks=[nothing], force=True, wait=True, timeout=5).jobs
-        mck.assert_called_once_with(jobs, timeout=5)
+        mck.assert_called_once_with(jobs, 5)
 
     # jobs are created in a specific order and are correct
     assert len(jobs) == 4
@@ -505,3 +508,73 @@ def test_submit_submittable_generate_unique_submit_id():
     assert jobs_1[0].submit_id == jobs_1[1].submit_id
     assert jobs_2[0].submit_id == jobs_2[1].submit_id
     assert jobs_1[0].submit_id != jobs_2[0].submit_id
+
+
+def task_sleep_1():
+    sleep(1)
+
+
+def task_sleep_2():
+    sleep(2)
+    return
+
+
+def test_submit_duration_development_mode():
+    core = Core()
+    core.run()
+
+    task_1 = Task("task_config_id_1", {}, task_sleep_1, [], [])
+    task_2 = Task("task_config_id_2", {}, task_sleep_2, [], [])
+
+    _TaskManager._set(task_1)
+    _TaskManager._set(task_2)
+
+    scenario = Scenario("scenario", {task_1, task_2}, {})
+    _ScenarioManager._set(scenario)
+    submission = taipy.submit(scenario)
+    jobs = submission.jobs
+    core.stop()
+
+    assert all(isinstance(job.execution_started_at, datetime) for job in jobs)
+    assert all(isinstance(job.execution_ended_at, datetime) for job in jobs)
+    jobs_1s = jobs[0] if jobs[0].task.config_id == "task_config_id_1" else jobs[1]
+    jobs_2s = jobs[0] if jobs[0].task.config_id == "task_config_id_2" else jobs[1]
+    assert jobs_1s.execution_duration >= 1
+    assert jobs_2s.execution_duration >= 2
+
+    assert submission.execution_duration >= 3
+    assert submission.execution_started_at == min(jobs_1s.execution_started_at, jobs_2s.execution_started_at)
+    assert submission.execution_ended_at == max(jobs_1s.execution_ended_at, jobs_2s.execution_ended_at)
+
+
+@pytest.mark.standalone
+def test_submit_duration_standalone_mode():
+    Config.configure_job_executions(mode=JobConfig._STANDALONE_MODE)
+    core = Core()
+    core.run()
+
+    task_1 = Task("task_config_id_1", {}, task_sleep_1, [], [])
+    task_2 = Task("task_config_id_2", {}, task_sleep_2, [], [])
+
+    _TaskManager._set(task_1)
+    _TaskManager._set(task_2)
+
+    scenario = Scenario("scenario", {task_1, task_2}, {})
+    _ScenarioManager._set(scenario)
+    submission = taipy.submit(scenario)
+    jobs = submission.jobs
+
+    assert_true_after_time(jobs[1].is_completed)
+
+    core.stop()
+
+    assert all(isinstance(job.execution_started_at, datetime) for job in jobs)
+    assert all(isinstance(job.execution_ended_at, datetime) for job in jobs)
+    jobs_1s = jobs[0] if jobs[0].task.config_id == "task_config_id_1" else jobs[1]
+    jobs_2s = jobs[0] if jobs[0].task.config_id == "task_config_id_2" else jobs[1]
+    assert jobs_1s.execution_duration >= 1
+    assert jobs_2s.execution_duration >= 2
+
+    assert submission.execution_duration >= 2  # Both tasks are executed in parallel so the duration may smaller than 3
+    assert submission.execution_started_at == min(jobs_1s.execution_started_at, jobs_2s.execution_started_at)
+    assert submission.execution_ended_at == max(jobs_1s.execution_ended_at, jobs_2s.execution_ended_at)

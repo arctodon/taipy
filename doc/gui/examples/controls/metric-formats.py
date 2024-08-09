@@ -8,11 +8,19 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 # an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
-from .._repository._sql_repository import _SQLRepository
-from ._scenario_converter import _ScenarioConverter
-from ._scenario_model import _ScenarioModel
+# -----------------------------------------------------------------------------------------
+# To execute this script, make sure that the taipy-gui package is installed in your
+# Python environment and run:
+#     python <script>
+# -----------------------------------------------------------------------------------------
+from taipy.gui import Gui
+
+speed = 60
+variation = 15
+
+page = """
+<|{speed}|metric|format=%d km/h|delta={variation}|delta_format=%d %%|>
+"""
 
 
-class _ScenarioSQLRepository(_SQLRepository):
-    def __init__(self) -> None:
-        super().__init__(model_type=_ScenarioModel, converter=_ScenarioConverter)
+Gui(page).run()

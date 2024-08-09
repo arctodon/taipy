@@ -161,7 +161,7 @@ class _Server:
                 if resource_handler is None:
                     return (f"Invalid value for query {_Server._RESOURCE_HANDLER_ARG}", 404)
                 try:
-                    return resource_handler.get_resources(path, static_folder)
+                    return resource_handler.get_resources(path, static_folder, base_url)
                 except Exception as e:
                     raise RuntimeError("Can't get resources from custom resource handler") from e
             if path == "" or path == "index.html" or "." not in path:
@@ -186,7 +186,7 @@ class _Server:
 
             if path == "taipy.status.json":
                 return self._direct_render_json(self._gui._serve_status(pathlib.Path(template_folder) / path))
-            if str(os.path.normpath(file_path := ((base_path := static_folder + os.path.sep) + path))).startswith(
+            if (file_path := str(os.path.normpath((base_path := static_folder + os.path.sep) + path))).startswith(
                 base_path
             ) and os.path.isfile(file_path):
                 return send_from_directory(base_path, path)
@@ -194,17 +194,17 @@ class _Server:
             for k, v in self.__path_mapping.items():
                 if (
                     path.startswith(f"{k}/")
-                    and str(
-                        os.path.normpath(file_path := ((base_path := v + os.path.sep) + path[len(k) + 1 :]))
+                    and (
+                        file_path := str(os.path.normpath((base_path := v + os.path.sep) + path[len(k) + 1 :]))
                     ).startswith(base_path)
                     and os.path.isfile(file_path)
                 ):
                     return send_from_directory(base_path, path[len(k) + 1 :])
             if (
                 hasattr(__main__, "__file__")
-                and str(
-                    os.path.normpath(
-                        file_path := ((base_path := os.path.dirname(__main__.__file__) + os.path.sep) + path)
+                and (
+                    file_path := str(
+                        os.path.normpath((base_path := os.path.dirname(__main__.__file__) + os.path.sep) + path)
                     )
                 ).startswith(base_path)
                 and os.path.isfile(file_path)
@@ -212,9 +212,9 @@ class _Server:
             ):
                 return send_from_directory(base_path, path)
             if (
-                str(os.path.normpath(file_path := (base_path := self._gui._root_dir + os.path.sep) + path)).startswith(
-                    base_path
-                )
+                (
+                    file_path := str(os.path.normpath((base_path := self._gui._root_dir + os.path.sep) + path))
+                ).startswith(base_path)
                 and os.path.isfile(file_path)
                 and not self.__is_ignored(file_path)
             ):
@@ -256,8 +256,9 @@ class _Server:
 
     def _apply_patch(self):
         if self._get_async_mode() == "gevent" and util.find_spec("gevent"):
-            from gevent import monkey
+            from gevent import get_hub, monkey
 
+            get_hub().NOT_ERROR += (KeyboardInterrupt, )
             if not monkey.is_module_patched("time"):
                 monkey.patch_time()
         if self._get_async_mode() == "eventlet" and util.find_spec("eventlet"):
@@ -290,7 +291,7 @@ class _Server:
             runtime_manager.add_gui(self._gui, port)
         if debug and not is_running_from_reloader() and _is_port_open(host_value, port):
             raise ConnectionError(
-                "Port {port} is already opened on {host} because another application is running on the same port. Please pick another port number and rerun with the 'port=<new_port>' option. You can also let Taipy choose a port number for you by running with the 'port=\"auto\"' option."  # noqa: E501
+                f"Port {port} is already opened on {host} because another application is running on the same port.\nPlease pick another port number and rerun with the 'port=<new_port>' setting.\nYou can also let Taipy choose a port number for you by running with the 'port=\"auto\"' setting."  # noqa: E501
             )
         if not flask_log:
             log = logging.getLogger("werkzeug")
@@ -318,7 +319,10 @@ class _Server:
         # flask-socketio specific conditions for 'allow_unsafe_werkzeug' parameters to be popped out of kwargs
         if self._get_async_mode() == "threading" and (not sys.stdin or not sys.stdin.isatty()):
             run_config = {**run_config, "allow_unsafe_werkzeug": allow_unsafe_werkzeug}
-        self._ws.run(**run_config)
+        try:
+            self._ws.run(**run_config)
+        except KeyboardInterrupt:
+            pass
 
     def stop_thread(self):
         if hasattr(self, "_thread") and self._thread.is_alive() and self._is_running:

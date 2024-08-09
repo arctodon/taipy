@@ -39,7 +39,14 @@ from ..exceptions.exceptions import (
 from ..job._job_manager_factory import _JobManagerFactory
 from ..job.job import Job
 from ..notification import EventEntityType, EventOperation, Notifier, _make_event
-from ..reason import EntityIsNotSubmittableEntity, ReasonCollection, WrongConfigType
+from ..reason import (
+    EntityDoesNotExist,
+    EntityIsNotSubmittableEntity,
+    ReasonCollection,
+    ScenarioDoesNotBelongToACycle,
+    ScenarioIsThePrimaryScenario,
+    WrongConfigType,
+)
 from ..submission._submission_manager_factory import _SubmissionManagerFactory
 from ..submission.submission import Submission
 from ..task._task_manager_factory import _TaskManagerFactory
@@ -111,9 +118,8 @@ class _ScenarioManager(_Manager[Scenario], _VersionMixin):
         config_id = getattr(config, "id", None) or str(config)
         reason_collector = ReasonCollection()
 
-        if config is not None:
-            if not isinstance(config, ScenarioConfig):
-                reason_collector._add_reason(config_id, WrongConfigType(config_id, ScenarioConfig.__name__))
+        if config is not None and not isinstance(config, ScenarioConfig):
+            reason_collector._add_reason(config_id, WrongConfigType(config_id, ScenarioConfig.__name__))
 
         return reason_collector
 
@@ -312,11 +318,10 @@ class _ScenarioManager(_Manager[Scenario], _VersionMixin):
     ) -> List[Scenario]:
         """
         Filter a list of scenarios by a given creation time period.
-        The time period is inclusive.
 
         Parameters:
-            created_start_time (Optional[datetime]): Start time of the period.
-            created_end_time (Optional[datetime]): End time of the period.
+            created_start_time (Optional[datetime]): Start time of the period. The start time is inclusive.
+            created_end_time (Optional[datetime]): End time of the period. The end time is exclusive.
 
         Returns:
             List[Scenario]: List of scenarios created in the given time period.
@@ -325,20 +330,33 @@ class _ScenarioManager(_Manager[Scenario], _VersionMixin):
             return scenarios
 
         if not created_start_time:
-            return [scenario for scenario in scenarios if scenario.creation_date <= created_end_time]
+            return [scenario for scenario in scenarios if scenario.creation_date < created_end_time]
 
         if not created_end_time:
             return [scenario for scenario in scenarios if created_start_time <= scenario.creation_date]
 
-        return [scenario for scenario in scenarios if created_start_time <= scenario.creation_date <= created_end_time]
+        return [scenario for scenario in scenarios if created_start_time <= scenario.creation_date < created_end_time]
 
     @classmethod
-    def _is_promotable_to_primary(cls, scenario: Union[Scenario, ScenarioId]) -> bool:
+    def _is_promotable_to_primary(cls, scenario: Union[Scenario, ScenarioId]) -> ReasonCollection:
+        reason_collection = ReasonCollection()
+
         if isinstance(scenario, str):
-            scenario = cls._get(scenario)
-        if scenario and not scenario.is_primary and scenario.cycle:
-            return True
-        return False
+            scenario_id = scenario
+            scenario = cls._get(scenario_id)
+        else:
+            scenario_id = scenario.id
+
+        if not scenario:
+            reason_collection._add_reason(scenario_id, EntityDoesNotExist(scenario_id))
+        else:
+            if scenario.is_primary:
+                reason_collection._add_reason(scenario_id, ScenarioIsThePrimaryScenario(scenario_id, scenario.cycle.id))
+
+            if not scenario.cycle:
+                reason_collection._add_reason(scenario_id, ScenarioDoesNotBelongToACycle(scenario_id))
+
+        return reason_collection
 
     @classmethod
     def _set_primary(cls, scenario: Scenario) -> None:
@@ -410,13 +428,15 @@ class _ScenarioManager(_Manager[Scenario], _VersionMixin):
         return Config.scenarios.get(scenario.config_id, None)
 
     @classmethod
-    def _is_deletable(cls, scenario: Union[Scenario, ScenarioId]) -> bool:
+    def _is_deletable(cls, scenario: Union[Scenario, ScenarioId]) -> ReasonCollection:
+        reason_collection = ReasonCollection()
+
         if isinstance(scenario, str):
             scenario = cls._get(scenario)
         if scenario.is_primary:
             if len(cls._get_all_by_cycle(scenario.cycle)) > 1:
-                return False
-        return True
+                reason_collection._add_reason(scenario.id, ScenarioIsThePrimaryScenario(scenario.id, scenario.cycle.id))
+        return reason_collection
 
     @classmethod
     def _delete(cls, scenario_id: ScenarioId) -> None:

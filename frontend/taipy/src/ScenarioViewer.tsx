@@ -106,7 +106,7 @@ interface SequencesRowProps {
     focusName: string;
     setFocusName: (name: string) => void;
     notSubmittableReason: string;
-    editable: boolean;
+    notEditableReason: string;
     isValid: (sLabel: string, label: string) => boolean;
 }
 
@@ -119,12 +119,12 @@ const tagsAutocompleteSx = {
     maxWidth: "none",
 };
 
-type SequenceFull = [string, string[], string, boolean];
+type SequenceFull = [string, string[], string, string];
 // enum SeFProps {
 //     label,
 //     tasks,
-//     submittable,
-//     editable,
+//     notSubmittableReason,
+//     notEditablereason,
 // }
 
 const SequenceRow = ({
@@ -141,7 +141,7 @@ const SequenceRow = ({
     focusName,
     setFocusName,
     notSubmittableReason,
-    editable,
+    notEditableReason,
     isValid,
 }: SequencesRowProps) => {
     const [label, setLabel] = useState("");
@@ -202,7 +202,7 @@ const SequenceRow = ({
 
     return (
         <Grid item xs={12} container justifyContent="space-between" data-focus={name} onClick={onFocus} sx={hoverSx}>
-            {active && editable && focusName === name ? (
+            {active && !notEditableReason && focusName === name ? (
                 <>
                     <Grid item xs={4}>
                         <TextField
@@ -324,11 +324,11 @@ const invalidScenario: ScenarioFull = [
     [],
     {},
     [],
-    false,
-    false,
     "invalid",
-    false,
-    false,
+    "invalid",
+    "invalid",
+    "invalid",
+    "invalid",
 ];
 
 const ScenarioViewer = (props: ScenarioViewerProps) => {
@@ -366,7 +366,13 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
             }
         }
         setValid(!!sc);
-        setScenario((oldSc) => (oldSc === sc ? oldSc : sc ? (deepEqual(oldSc, sc) ? oldSc : sc) : invalidScenario));
+        setScenario((oldSc) => {
+            if (oldSc === sc || (sc && deepEqual(oldSc, sc))) {
+                return oldSc;
+            }
+            setSubmissionStatus(-1);
+            return sc || invalidScenario;
+        });
     }, [props.scenario, props.defaultScenario]);
 
     const [
@@ -384,11 +390,11 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
         scDeletable,
         scPromotable,
         scNotSubmittableReason,
-        scReadable,
-        scEditable,
+        scNotReadableReason,
+        scNotEditableReason,
     ] = scenario || invalidScenario;
 
-    const active = useDynamicProperty(props.active, props.defaultActive, true) && scReadable;
+    const active = useDynamicProperty(props.active, props.defaultActive, true) && !scNotReadableReason;
     const className = useClassNames(props.libClassName, props.dynamicClassName, props.className);
 
     const [deleteDialog, setDeleteDialogOpen] = useState(false);
@@ -397,7 +403,18 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
     const onDeleteScenario = useCallback(() => {
         setDeleteDialogOpen(false);
         if (valid) {
-            dispatch(createSendActionNameAction(id, module, { action: props.onDelete, error_id: getUpdateVar(updateScVars, "error_id") }, undefined, undefined, true, true, { id: scId }));
+            dispatch(
+                createSendActionNameAction(
+                    id,
+                    module,
+                    { action: props.onDelete, error_id: getUpdateVar(updateScVars, "error_id") },
+                    undefined,
+                    undefined,
+                    true,
+                    true,
+                    { id: scId }
+                )
+            );
         }
     }, [valid, props.onDelete, scId, id, dispatch, module, updateScVars]);
 
@@ -423,6 +440,9 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
         (e: SyntheticEvent, expand: boolean) => expandable && setUserExpanded(expand),
         [expandable]
     );
+
+    // Submission status
+    const [submissionStatus, setSubmissionStatus] = useState(-1);
 
     // submits
     const submitSequence = useCallback(
@@ -575,10 +595,7 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
         [sequences]
     );
 
-    const addSequenceHandler = useCallback(() => setSequences((seq) => [...seq, ["", [], "", true]]), []);
-
-    // Submission status
-    const [submissionStatus, setSubmissionStatus] = useState(-1);
+    const addSequenceHandler = useCallback(() => setSequences((seq) => [...seq, ["", [], "", ""]]), []);
 
     // on scenario change
     useEffect(() => {
@@ -697,7 +714,7 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
                                     onClick={onFocus}
                                     sx={hoverSx}
                                 >
-                                    {active && scEditable && focusName === "label" ? (
+                                    {active && !scNotEditableReason && focusName === "label" ? (
                                         <TextField
                                             label="Label"
                                             variant="outlined"
@@ -753,7 +770,7 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
                                         onClick={onFocus}
                                         sx={hoverSx}
                                     >
-                                        {active && scEditable && focusName === "tags" ? (
+                                        {active && !scNotEditableReason && focusName === "tags" ? (
                                             <Autocomplete
                                                 multiple
                                                 options={scAuthorizedTags}
@@ -840,7 +857,7 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
                                 setFocusName={setFocusName}
                                 onFocus={onFocus}
                                 onEdit={props.onEdit}
-                                editable={scEditable}
+                                notEditableReason={scNotEditableReason}
                                 updatePropVars={updateScVars}
                             />
                             {showSequences ? (
@@ -857,7 +874,7 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
                                     </Grid>
 
                                     {sequences.map((item, index) => {
-                                        const [label, taskIds, notSubmittableReason, editable] = item;
+                                        const [label, taskIds, notSubmittableReason, notEditableReason] = item;
                                         return (
                                             <SequenceRow
                                                 active={active}
@@ -874,7 +891,7 @@ const ScenarioViewer = (props: ScenarioViewerProps) => {
                                                 focusName={focusName}
                                                 setFocusName={setFocusName}
                                                 notSubmittableReason={notSubmittableReason}
-                                                editable={editable}
+                                                notEditableReason={notEditableReason}
                                                 isValid={isValidSequence}
                                             />
                                         );

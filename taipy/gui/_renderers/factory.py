@@ -353,12 +353,15 @@ class _Factory:
                 ("min", PropertyType.number, 0),
                 ("max", PropertyType.number, 100),
                 ("delta", PropertyType.dynamic_number),
+                ("delta_color", PropertyType.string),
+                ("negative_delta_color", PropertyType.string),
                 ("threshold", PropertyType.dynamic_number),
                 ("width", PropertyType.string_or_number),
                 ("height", PropertyType.string_or_number),
                 ("show_value", PropertyType.boolean, True),
                 ("format", PropertyType.string),
                 ("delta_format", PropertyType.string),
+                ("bar_color", PropertyType.string),
                 ("color_map", PropertyType.dict),
                 ("hover_text", PropertyType.dynamic_string),
                 ("template", PropertyType.dict),
@@ -500,6 +503,7 @@ class _Factory:
         )
         .set_value_and_default(with_default=False, var_type=PropertyType.data)
         ._get_dataframe_attributes()
+        ._get_list_attribute("selected", PropertyType.number)
         .set_attributes(
             [
                 ("page_size", PropertyType.number, "100"),
@@ -522,7 +526,6 @@ class _Factory:
             ]
         )
         ._set_propagate()
-        ._get_list_attribute("selected", PropertyType.number)
         ._set_table_pagesize_options(),
         "text": lambda gui, control_type, attrs: _Builder(
             gui=gui,
@@ -594,7 +597,7 @@ class _Factory:
             [
                 ("linear", PropertyType.boolean, False),
                 ("show_value", PropertyType.boolean, False),
-                ("render", PropertyType.dynamic_boolean, True)
+                ("render", PropertyType.dynamic_boolean, True),
             ]
         )
         ._set_propagate(),
