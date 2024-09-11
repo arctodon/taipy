@@ -357,7 +357,7 @@ class _Builder:
             if strattr is None:
                 return self
         elif _is_boolean(strattr) and not _is_true(strattr):
-            return self
+            return self.__set_react_attribute(_to_camel_case(name), False)
         elif strattr:
             strattr = str(strattr)
             func = self.__gui._get_user_function(strattr)
@@ -974,9 +974,10 @@ class _Builder:
                 var_type = _TaipyToJson
             if var_type == PropertyType.boolean:
                 def_val = _get_tuple_val(attr, 2, False)
-                val = self.__get_boolean_attribute(attr[0], def_val)
-                if val != def_val:
-                    self.set_boolean_attribute(attr[0], val)
+                if isinstance(def_val, bool) or self.__attributes.get(attr[0], None) is not None:
+                    val = self.__get_boolean_attribute(attr[0], def_val)
+                    if val != def_val:
+                        self.set_boolean_attribute(attr[0], val)
             elif var_type == PropertyType.dynamic_boolean:
                 self.__set_dynamic_bool_attribute(
                     attr[0],

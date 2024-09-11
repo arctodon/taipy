@@ -15,13 +15,13 @@
 # -----------------------------------------------------------------------------------------
 from taipy.gui import Gui
 
-value = 50
-max_value = 150
-delta_value = 20
-threshold = 100
+if __name__ == "__main__":
+    value = 72
+    delta = 15
+    threshold = 60
 
-page = """
-<|{value}|metric|max={max_value}|delta={delta_value}|threshold={threshold}|>
-"""
+    page = """
+<|{value}|metric|delta={delta}|threshold={threshold}|>
+    """
 
-Gui(page).run()
+    Gui(page).run()

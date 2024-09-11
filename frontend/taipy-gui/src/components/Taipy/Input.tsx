@@ -21,7 +21,7 @@ import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 import { createSendActionNameAction, createSendUpdateAction } from "../../context/taipyReducers";
-import { TaipyInputProps } from "./utils";
+import { getCssSize, TaipyInputProps } from "./utils";
 import { useClassNames, useDispatch, useDynamicProperty, useModule } from "../../utils/hooks";
 
 const AUTHORIZED_KEYS = ["Enter", "Escape", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
@@ -80,25 +80,61 @@ const Input = (props: TaipyInputProps) => {
     const min = useDynamicProperty(props.min, props.defaultMin, undefined);
     const max = useDynamicProperty(props.max, props.defaultMax, undefined);
 
+    const textSx = useMemo(
+        () =>
+            props.width
+                ? {
+                      ...numberSx,
+                      maxWidth: getCssSize(props.width),
+                  }
+                : numberSx,
+        [props.width]
+    );
+
+    const updateValueWithDelay = useCallback(
+        (value: number | string) => {
+            if (changeDelay === -1) {
+                return;
+            }
+            if (changeDelay === 0) {
+                // Workaround using microtask to ensure the value is updated before the next action to avoid the bad setState behavior
+                Promise.resolve().then(() => {
+                    dispatch(createSendUpdateAction(updateVarName, value, module, onChange, propagate));
+                });
+                return;
+            }
+            if (delayCall.current > 0) {
+                clearTimeout(delayCall.current);
+            }
+            delayCall.current = window.setTimeout(() => {
+                delayCall.current = -1;
+                dispatch(createSendUpdateAction(updateVarName, value, module, onChange, propagate));
+            }, changeDelay);
+        },
+        [changeDelay, dispatch, updateVarName, module, onChange, propagate]
+    );
+
     const handleInput = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const val = e.target.value;
             setValue(val);
-            if (changeDelay === 0) {
-                dispatch(createSendUpdateAction(updateVarName, val, module, onChange, propagate));
+            if (changeDelay === -1) {
                 return;
             }
-            if (changeDelay > 0) {
-                if (delayCall.current > 0) {
-                    clearTimeout(delayCall.current);
-                }
-                delayCall.current = window.setTimeout(() => {
-                    delayCall.current = -1;
+            if (changeDelay === 0) {
+                Promise.resolve().then(() => {
                     dispatch(createSendUpdateAction(updateVarName, val, module, onChange, propagate));
-                }, changeDelay);
+                });
             }
+            if (delayCall.current > 0) {
+                clearTimeout(delayCall.current);
+            }
+            delayCall.current = window.setTimeout(() => {
+                delayCall.current = -1;
+                dispatch(createSendUpdateAction(updateVarName, val, module, onChange, propagate));
+            }, changeDelay);
         },
-        [updateVarName, dispatch, propagate, onChange, changeDelay, module]
+        [changeDelay, dispatch, updateVarName, module, onChange, propagate]
     );
 
     const handleAction = useCallback(
@@ -112,6 +148,7 @@ const Input = (props: TaipyInputProps) => {
                         val = max;
                     }
                     setValue(val.toString());
+                    updateValueWithDelay(val);
                     evt.preventDefault();
                 } else if (evt.key === "ArrowDown") {
                     let val =
@@ -121,10 +158,13 @@ const Input = (props: TaipyInputProps) => {
                         val = min;
                     }
                     setValue(val.toString());
+                    updateValueWithDelay(val);
                     evt.preventDefault();
                 }
             } else if (!evt.shiftKey && !evt.ctrlKey && !evt.altKey && actionKeys.includes(evt.key)) {
-                const val = evt.currentTarget.querySelector("input")?.value;
+                const val = multiline
+                    ? evt.currentTarget.querySelector("textarea")?.value
+                    : evt.currentTarget.querySelector("input")?.value;
                 if (changeDelay > 0 && delayCall.current > 0) {
                     clearTimeout(delayCall.current);
                     delayCall.current = -1;
@@ -138,17 +178,19 @@ const Input = (props: TaipyInputProps) => {
         },
         [
             type,
+            multiline,
             actionKeys,
             step,
             stepMultiplier,
             max,
-            min,
-            changeDelay,
+            updateValueWithDelay,
             onAction,
             dispatch,
             id,
             module,
             updateVarName,
+            min,
+            changeDelay,
             onChange,
             propagate,
         ]
@@ -179,16 +221,22 @@ const Input = (props: TaipyInputProps) => {
                     event.shiftKey,
                     increment
                 );
+
                 if (min !== undefined && Number(newValue) < min) {
+                    updateValueWithDelay(min);
                     return min.toString();
                 }
+
                 if (max !== undefined && Number(newValue) > max) {
+                    updateValueWithDelay(max);
                     return max.toString();
                 }
+
+                updateValueWithDelay(newValue);
                 return newValue;
             });
         },
-        [min, max, step, stepMultiplier, calculateNewValue]
+        [calculateNewValue, step, stepMultiplier, min, max, updateValueWithDelay]
     );
 
     const handleUpStepperMouseDown = useCallback(
@@ -228,27 +276,27 @@ const Input = (props: TaipyInputProps) => {
                       ),
                   }
                 : type == "number"
-                ? {
-                      endAdornment: (
-                          <div style={verticalDivStyle}>
-                              <IconButton
-                                  aria-label="Increment value"
-                                  size="small"
-                                  onMouseDown={handleUpStepperMouseDown}
-                              >
-                                  <ArrowDropUpIcon fontSize="inherit" />
-                              </IconButton>
-                              <IconButton
-                                  aria-label="Decrement value"
-                                  size="small"
-                                  onMouseDown={handleDownStepperMouseDown}
-                              >
-                                  <ArrowDropDownIcon fontSize="inherit" />
-                              </IconButton>
-                          </div>
-                      ),
-                  }
-                : undefined,
+                  ? {
+                        endAdornment: (
+                            <div style={verticalDivStyle}>
+                                <IconButton
+                                    aria-label="Increment value"
+                                    size="small"
+                                    onMouseDown={handleUpStepperMouseDown}
+                                >
+                                    <ArrowDropUpIcon fontSize="inherit" />
+                                </IconButton>
+                                <IconButton
+                                    aria-label="Decrement value"
+                                    size="small"
+                                    onMouseDown={handleDownStepperMouseDown}
+                                >
+                                    <ArrowDropDownIcon fontSize="inherit" />
+                                </IconButton>
+                            </div>
+                        ),
+                    }
+                  : undefined,
         [
             type,
             showPassword,
@@ -268,8 +316,8 @@ const Input = (props: TaipyInputProps) => {
                       max: max,
                   }
                 : type == "password"
-                ? { autoComplete: "current-password" }
-                : undefined,
+                  ? { autoComplete: "current-password" }
+                  : undefined,
         [type, step, min, max]
     );
 
@@ -282,15 +330,17 @@ const Input = (props: TaipyInputProps) => {
     return (
         <Tooltip title={hover || ""}>
             <TextField
-                sx={numberSx}
+                sx={textSx}
                 margin="dense"
                 hiddenLabel
                 value={value ?? ""}
                 className={className}
                 type={showPassword && type == "password" ? "text" : type}
                 id={id}
-                inputProps={inputProps}
-                InputProps={muiInputProps}
+                slotProps={{
+                    htmlInput: inputProps,
+                    input: muiInputProps,
+                }}
                 label={props.label}
                 onChange={handleInput}
                 disabled={!active}

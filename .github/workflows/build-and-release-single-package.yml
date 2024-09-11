@@ -128,7 +128,7 @@ jobs:
       - name: Generate GUI pyi file
         if: github.event.inputs.target_package == 'gui'
         run: |
-          cp tools/gui/generate_pyi.py pyi_temp.py && pipenv run python pyi_temp.py && rm pyi_temp.py
+          pipenv run python tools/gui/generate_pyi.py
 
       - name: Build frontends
         if: github.event.inputs.target_package == 'gui'
@@ -156,9 +156,10 @@ jobs:
       - name: Build package
         working-directory: ${{ steps.set-variables.outputs.package_dir }}
         run: |
-          python setup.py build_py && python -m build
+          python -m build
 
       - name: Rename files
+        working-directory: ${{ steps.set-variables.outputs.package_dir }}
         run: |
           for file in ./dist/*; do mv "$file" "${file//_/-}"; done
 

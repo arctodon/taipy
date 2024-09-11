@@ -29,6 +29,12 @@
                         "name": "format",
                         "type": "str",
                         "doc": "The format to apply to the value.<br/>See below."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the element."
                     }
                 ]
             }
@@ -44,14 +50,14 @@
                     {
                         "name": "label",
                         "default_property": true,
-                        "type": "dynamic(str|Icon)",
+                        "type": "dynamic(Union[str,Icon])",
                         "default_value": "\"\"",
                         "doc": "The label displayed in the button."
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "The name of a function that is triggered when the button is pressed.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str|None): the identifier of the button.</li>\n<li>payload (dict): a dictionary that contains the key \"action\" set to the name of the action that triggered this callback.</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "The name of a function that is triggered when the button is pressed.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button it it has one.</li>\n<li>payload (dict): a dictionary that contains the key \"action\" set to the name of the action that triggered this callback.</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -66,6 +72,12 @@
                                 "dict"
                             ]
                         ]
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the button element."
                     }
                 ]
             }
@@ -142,24 +154,24 @@
                     },
                     {
                         "name": "step",
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "default_value": "1",
                         "doc": "The amount by which the value is incremented or decremented when the user clicks one of the arrow buttons."
                     },
                     {
                         "name": "step_multiplier",
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "default_value": "10",
                         "doc": "A factor that multiplies <i>step</i> when the user presses the Shift key while clicking one of the arrow buttons."
                     },
                     {
                         "name": "min",
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "doc": "The minimum value to accept for this input."
                     },
                     {
                         "name": "max",
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "doc": "The maximum value to accept for this input."
                     }
                 ]
@@ -176,26 +188,26 @@
                     {
                         "name": "value",
                         "default_property": true,
-                        "type": "dynamic(int|float|int[]|float[]|str|str[])",
+                        "type": "dynamic(Union[int,float,str,list[int],list[float],list[str]])",
                         "doc": "The value that is set for this slider.<br/>If this slider is based on a <i>lov</i> then this property can be set to the lov element.<br/>This value can also hold an array of numbers to indicate that the slider reflects a range (within the [<i>min</i>,<i>max</i>] domain) defined by several knobs that the user can set independently.<br/>If this slider is based on a <i>lov</i> then this property can be set to an array of lov elements. The slider is then represented with several knobs, one for each lov value."
                     },
                     {
                         "name": "min",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "0",
                         "doc": "The minimum value.<br/>This is ignored when <i>lov</i> is defined."
                     },
                     {
                         "name": "max",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "100",
                         "doc": "The maximum value.<br/>This is ignored when <i>lov</i> is defined."
                     },
                     {
                         "name": "step",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "1",
-                        "doc": "The step value: the gap between two consecutive values the slider set. It is a good practice to have (<i>max</i>-<i>min</i>) being divisible by <i>step</i>.<br/>This property is ignored when <i>lov</i> is defined."
+                        "doc": "The step value, which is the gap between two consecutive values the slider set. It is a good practice to have (<i>max</i>-<i>min</i>) being divisible by <i>step</i>.<br/>This property is ignored when <i>lov</i> is defined."
                     },
                     {
                         "name": "text_anchor",
@@ -205,7 +217,7 @@
                     },
                     {
                         "name": "labels",
-                        "type": "bool|dict",
+                        "type": "Union[bool,dict[str,str]]",
                         "doc": "The labels for specific points of the slider.<br/>If set to True, this slider uses the labels of the <i>lov</i> if there are any.<br/>If set to a dictionary, the slider uses the dictionary keys as a <i>lov</i> key or index, and the associated value as the label."
                     },
                     {
@@ -273,6 +285,17 @@
                         "name": "mode",
                         "type": "str",
                         "doc": "Define the way the toggle is displayed:\n<ul><li>&quot;theme&quot;: synonym for setting the *theme* property to True</li></ul>"
+                    },
+                    {
+                        "name": "label",
+                        "type": "str",
+                        "doc": "The label associated with the toggle."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the element."
                     }
                 ]
             }
@@ -322,6 +345,12 @@
                         "name": "max",
                         "type": "dynamic(datetime)",
                         "doc": "The maximum date to accept for this input."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the date element."
                     }
                 ]
             }
@@ -366,6 +395,12 @@
                         "name": "label_end",
                         "type": "str",
                         "doc": "The label associated with the second input."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the date_range element."
                     }
                 ]
             }
@@ -500,8 +535,8 @@
                     },
                     {
                         "name": "on_range_change",
-                        "type": "Callback",
-                        "doc": "The callback function that is invoked when the visible part of the x axis changes.<br/>The function receives three parameters:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str|None): the identifier of the chart control.</li>\n<li>payload (dict[str, any]): the full details on this callback's invocation, as emitted by <a href=\"https://plotly.com/javascript/plotlyjs-events/#update-data\">Plotly</a>.</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "The callback function that is invoked when the visible part of the x axis changes.<br/>The function receives three parameters:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the chart control if it has one.</li>\n<li>payload (dict[str, any]): the full details on this callback's invocation, as emitted by <a href=\"https://plotly.com/javascript/plotlyjs-events/#update-data\">Plotly</a>.</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -519,7 +554,7 @@
                     },
                     {
                         "name": "columns",
-                        "type": "str|list[str]|dict[str, dict[str, str]]",
+                        "type": "Union[str,list[str],dict[str,dict[str,str]]]",
                         "default_value": "<i>All columns</i>",
                         "doc": "The list of column names\n<ul>\n<li>str: ;-separated list of column names</li>\n<li>list[str]: list of names</li>\n<li>dict: {\"column_name\": {format: \"format\", index: 1}} if index is specified, it represents the display order of the columns.\nIf not, the list order defines the index</li>\n</ul>"
                     },
@@ -535,7 +570,7 @@
                     },
                     {
                         "name": "selected",
-                        "type": "indexed(dynamic(list[int]|str))",
+                        "type": "indexed(dynamic(Union[list[int],str]))",
                         "doc": "The list of the selected point indices  ."
                     },
                     {
@@ -555,7 +590,7 @@
                     },
                     {
                         "name": "line",
-                        "type": "indexed(str|dict[str, any])",
+                        "type": "indexed(Union[str,dict[str,any]])",
                         "doc": "The configuration of the line used for the indicated trace.<br/>See <a href=\"https://plotly.com/javascript/reference/scatter/#scatter-line\">line</a> for details.<br/>If the value is a string, it must be a dash type or pattern (see <a href=\"https://plotly.com/python/reference/scatter/#scatter-line-dash\">dash style of lines</a> for details)."
                     },
                     {
@@ -600,13 +635,13 @@
                     },
                     {
                         "name": "width",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "default_value": "\"100%\"",
                         "doc": "The width of this chart, in CSS units."
                     },
                     {
                         "name": "height",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "doc": "The height of this chart, in CSS units."
                     },
                     {
@@ -639,6 +674,25 @@
                         "name": "figure",
                         "type": "dynamic(plotly.graph_objects.Figure)",
                         "doc": "A figure as produced by plotly."
+                    },
+                    {
+                        "name": "on_click",
+                        "type": "Callable",
+                        "doc": "The callback that is invoked when the user clicks in the chart background.<br/>The function receives three parameters:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the chart control if it has one.</li>\n<li>payload (dict[str, any]): a dictionary containing the <i>x</i> and <i>y</i> coordinates of the click <b>or</b> <i>latitude</i> and <i>longitude</i> in the case of a map. This feature relies on non-public Plotly structured information.</li>\n</ul>",
+                        "signature": [
+                            [
+                                "state",
+                                "State"
+                            ],
+                            [
+                                "id",
+                                "str"
+                            ],
+                            [
+                                "payload",
+                                "dict"
+                            ]
+                        ]
                     }
                 ]
             }
@@ -689,18 +743,18 @@
                     },
                     {
                         "name": "selected",
-                        "type": "dynamic(list[int]|str)",
+                        "type": "dynamic(Union[list[int],str])",
                         "doc": "The list of the indices of the rows to be displayed as selected."
                     },
                     {
                         "name": "page_size_options",
-                        "type": "list[int]|str",
-                        "default_value": "[50, 100, 500]",
+                        "type": "Union[list[int],str]",
+                        "default_value": "(50, 100, 500)",
                         "doc": "The list of available page sizes that users can choose from."
                     },
                     {
                         "name": "columns",
-                        "type": "str|list[str]|dict[str, dict[str, str|int]]",
+                        "type": "Union[str,list[str],dict[str,dict[str,Union[str,int]]]]",
                         "default_value": "<i>shows all columns when empty</i>",
                         "doc": "The list of the column names to display.\n<ul>\n<li>str: Semicolon (';')-separated list of column names.</li>\n<li>list[str]: The list of column names.</li>\n<li>dict: A dictionary with entries matching: {\"col name\": {format: \"format\", index: 1}}.<br/>\nif <i>index</i> is specified, it represents the display order of the columns.\nIf <i>index</i> is not specified, the list order defines the index.<br/>\nIf <i>format</i> is specified, it is used for numbers or dates.</li>\n</ul>"
                     },
@@ -797,7 +851,7 @@
                     },
                     {
                         "name": "on_edit",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "TODO: Default implementation and False value. The name of a function that is triggered when a cell edition is validated.<br/>All parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>var_name (str): the name of the tabular data variable.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>index (int): the row index.</li>\n<li>col (str): the column name.</li>\n<li>value (any): the new cell value cast to the type of the column.</li>\n<li>user_value (str): the new cell value, as it was provided by the user.</li>\n<li>tz (str): the timezone if the column type is date.</li>\n</ul>\n</li>\n</ul><br/>If this property is not set, the user cannot edit cells.",
                         "signature": [
                             [
@@ -816,7 +870,7 @@
                     },
                     {
                         "name": "on_delete",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "TODO: Default implementation and False value. The name of a function that is triggered when a row is deleted.<br/>All parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>var_name (str): the name of the tabular data variable.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>index (int): the row index.</li>\n</ul>\n</li>\n</ul><br/>If this property is not set, the user cannot delete rows.",
                         "signature": [
                             [
@@ -835,7 +889,7 @@
                     },
                     {
                         "name": "on_add",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "TODO: Default implementation and False value. The name of a function that is triggered when the user requests a row to be added.<br/>All parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>var_name (str): the name of the tabular data variable.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>This dictionary has the following keys:\n<ul>\n<li>index (int): the row index.</li>\n</ul>\n</li>\n</ul><br/>If this property is not set, the user cannot add rows.",
                         "signature": [
                             [
@@ -854,7 +908,7 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "The name of a function that is triggered when the user selects a row.<br/>All parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>var_name (str): the name of the tabular data variable.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>This dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>index (int): the row index.</li>\n<li>col (str): the column name.</li>\n<li>reason (str): the origin of the action: \"click\", or \"button\" if the cell contains a Markdown link syntax.</li>\n<li>value (str): the *link value* indicated in the cell when using a Markdown link syntax (that is, <i>reason</i> is set to \"button\").</li></ul></li></ul>.",
                         "signature": [
                             [
@@ -885,17 +939,17 @@
                     },
                     {
                         "name": "lov[<i>column_name</i>]",
-                        "type": "list[str]|str",
+                        "type": "Union[list[str],str]",
                         "doc": "The list of values of the indicated column."
                     },
                     {
                         "name": "downloadable",
-                        "type": "boolean",
+                        "type": "bool",
                         "doc": "If True, a clickable icon is shown so the user can download the data as CSV."
                     },
                     {
                         "name": "on_compare",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "A data comparison function that would return a structure that identifies the differences between the different data passed as name. The default implementation compares the default data with the data[1] value.",
                         "signature": [
                             [
@@ -954,13 +1008,13 @@
                     },
                     {
                         "name": "width",
-                        "type": "str|int",
+                        "type": "Union[str,int]",
                         "default_value": "\"360px\"",
                         "doc": "The width of this selector, in CSS units."
                     },
                     {
                         "name": "height",
-                        "type": "str|int",
+                        "type": "Union[str,int]",
                         "doc": "The height of this selector, in CSS units."
                     }
                 ]
@@ -977,7 +1031,7 @@
                     {
                         "name": "content",
                         "default_property": true,
-                        "type": "dynamic(path|file|URL|ReadableBuffer|None)",
+                        "type": "dynamic(Union[path,file,URL,ReadableBuffer,None])",
                         "doc": "The content to transfer.<br/>If this is a string, a URL, or a file, then the content is read from this source.<br/>If a readable buffer is provided (such as an array of bytes...), and to prevent the bandwidth from being consumed too much, the way the data is transferred depends on the <i>data_url_max_size</i> parameter of the application configuration (which is set to 50kB by default):\n<ul>\n<li>If the buffer size is smaller than this setting, then the raw content is generated as a data URL, encoded using base64 (i.e. <code>\"data:&lt;mimetype&gt;;base64,&lt;data&gt;\"</code>).</li>\n<li>If the buffer size exceeds this setting, then it is transferred through a temporary file.</li>\n</ul>If this property is set to None, that indicates that dynamic content is generated. Please take a look at the examples below for details on dynamic generation."
                     },
                     {
@@ -987,8 +1041,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "The name of a function that is triggered when the download is terminated (or on user action if <i>content</i> is None).<br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str|None): the identifier of the button.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has two keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: A list of two elements: <i>args[0]</i> reflects the <i>name</i> property and <i>args[1]</i> holds the file URL.</li>\n</ul>\n</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "The name of a function that is triggered when the download is terminated (or on user action if <i>content</i> is None).<br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button if it has one.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has two keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: A list of two elements: <i>args[0]</i> reflects the <i>name</i> property and <i>args[1]</i> holds the file URL.</li>\n</ul>\n</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -1026,6 +1080,12 @@
                         "name": "name",
                         "type": "str",
                         "doc": "A name proposition for the file to save, that the user can change."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the element."
                     }
                 ]
             }
@@ -1051,8 +1111,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "The name of the function that will be triggered.<br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str|None): the identifier of the button.</li>\n<li>payload (dict): a dictionary that contains the key \"action\" set to the name of the action that triggered this callback.</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "The name of the function that will be triggered.<br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button if it has one.</li>\n<li>payload (dict): a dictionary that contains the key \"action\" set to the name of the action that triggered this callback.</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -1091,6 +1151,12 @@
                         "type": "bool",
                         "default_value": "True",
                         "doc": "If set to False, the user won't be notified of upload finish."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the element."
                     }
                 ]
             }
@@ -1106,7 +1172,7 @@
                     {
                         "name": "content",
                         "default_property": true,
-                        "type": "dynamic(path|URL|file|ReadableBuffer)",
+                        "type": "dynamic(Union[path,URL,file,ReadableBuffer])",
                         "doc": "The image source.<br/>If a buffer is provided (string, array of bytes...), and in order to prevent the bandwidth to be consumed too much, the way the image data is transferred depends on the <i>data_url_max_size</i> parameter of the application configuration (which is set to 50kB by default):\n<ul>\n<li>If the size of the buffer is smaller than this setting, then the raw content is generated as a\n  data URL, encoded using base64 (i.e. <code>\"data:&lt;mimetype&gt;;base64,&lt;data&gt;\"</code>).</li>\n<li>If the size of the buffer is greater than this setting, then it is transferred through a temporary\n  file.</li>\n</ul>"
                     },
                     {
@@ -1116,8 +1182,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "The name of a function that is triggered when the user clicks on the image.<br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str|None): the identifier of the button.</li>\n<li>payload (dict): a dictionary that contains the key \"action\" set to the name of the action that triggered this callback.</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "The name of a function that is triggered when the user clicks on the image.<br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button if it has one.</li>\n<li>payload (dict): a dictionary that contains the key \"action\" set to the name of the action that triggered this callback.</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -1135,13 +1201,13 @@
                     },
                     {
                         "name": "width",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "default_value": "\"300px\"",
                         "doc": "The width of this image control, in CSS units."
                     },
                     {
                         "name": "height",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "doc": "The height of this image control, in CSS units."
                     }
                 ]
@@ -1157,7 +1223,7 @@
                     {
                         "name": "value",
                         "default_property": true,
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "doc": "The value to represent."
                     },
                     {
@@ -1168,19 +1234,19 @@
                     },
                     {
                         "name": "min",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "0",
                         "doc": "The minimum value of this metric control's gauge."
                     },
                     {
                         "name": "max",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "100",
                         "doc": "The maximum value of this metric control's gauge."
                     },
                     {
                         "name": "delta",
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "doc": "The delta value to display."
                     },
                     {
@@ -1201,7 +1267,7 @@
                     },
                     {
                         "name": "threshold",
-                        "type": "dynamic(int|float)",
+                        "type": "dynamic(Union[int,float])",
                         "doc": "The threshold value to display."
                     },
                     {
@@ -1232,13 +1298,13 @@
                     },
                     {
                         "name": "width",
-                        "type": "str|number",
+                        "type": "Union[str,number]",
                         "default_value": "None",
                         "doc": "The width of the metric control, in CSS units."
                     },
                     {
                         "name": "height",
-                        "type": "str|number",
+                        "type": "Union[str,number]",
                         "default_value": "None",
                         "doc": "The height of the metric control, in CSS units."
                     },
@@ -1317,13 +1383,13 @@
                     },
                     {
                         "name": "min",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "0",
                         "doc": "The minimum value of the range."
                     },
                     {
                         "name": "max",
-                        "type": "int|float",
+                        "type": "Union[int,float]",
                         "default_value": "100",
                         "doc": "The maximum value of the range."
                     },
@@ -1367,14 +1433,14 @@
                     {
                         "name": "lov",
                         "default_property": true,
-                        "type": "dynamic(str|list[str|Icon|any])",
+                        "type": "dynamic(Union[str,list[Union[str,Icon,any]]])",
                         "doc": "The list of menu option values."
                     },
                     {
                         "name": "adapter",
                         "type": "Function",
                         "default_value": "`\"lambda x: str(x)\"`",
-                        "doc": "The function that transforms an element of <i>lov</i> into a <i>tuple(id:str, label:str|Icon)</i>."
+                        "doc": "The function that transforms an element of <i>lov</i> into a <i>tuple(id:str, label:Union[str,Icon])</i>."
                     },
                     {
                         "name": "type",
@@ -1389,7 +1455,7 @@
                     },
                     {
                         "name": "inactive_ids",
-                        "type": "dynamic(str|list[str])",
+                        "type": "dynamic(Union[str,list[str]])",
                         "doc": "Semicolon (';')-separated list or a list of menu items identifiers that are disabled."
                     },
                     {
@@ -1406,8 +1472,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "The name of the function that is triggered when a menu option is selected.<br/><br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: List where the first element contains the id of the selected option.</li>\n</ul>\n</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "The name of the function that is triggered when a menu option is selected.<br/><br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button if it has one.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: List where the first element contains the id of the selected option.</li>\n</ul>\n</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -1438,7 +1504,7 @@
                         "name": "lov",
                         "default_property": true,
                         "type": "dict[str, any]",
-                        "doc": "The list of pages. The keys should be:\n<ul>\n<li>page id (start with \"/\")</li>\n<li>or full URL</li>\n</ul>\nThe values are labels. See the <a href=\"../../binding/#list-of-values\">section on List of Values</a> for details."
+                        "doc": "The list of pages. The keys should be:\n<ul>\n<li>page id (start with \"/\")</li>\n<li>or full URL</li>\n</ul>\nThe values are labels. See the <a href=\"../../../../userman/gui/binding/#list-of-values\">section on List of Values</a> for details."
                     }
                 ]
             }
@@ -1453,7 +1519,7 @@
                     {
                         "name": "value",
                         "default_property": true,
-                        "type": "tuple|dict|list[dict]|list[tuple]",
+                        "type": "Union[tuple,dict,list[dict],list[tuple]]",
                         "doc": "The different status items to represent. See below."
                     },
                     {
@@ -1481,8 +1547,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "The name of the function that is triggered when the dialog button is pressed.<br/><br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: a list with three elements:\n<ul><li>The first element is the username</li><li>The second element is the password</li><li>The third element is the current page name</li></ul></li></li>\n</ul>\n</li>\n</ul><br/>When the button is pressed, and if this property is not set, Taipy will try to find a callback function called <i>on_login()</i> and invoke it with the parameters listed above.",
+                        "type": "Callable",
+                        "doc": "The name of the function that is triggered when the dialog button is pressed.<br/><br/>All the parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the button if it has one.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: a list with three elements:\n<ul><li>The first element is the username</li><li>The second element is the password</li><li>The third element is the current page name</li></ul></li></li>\n</ul>\n</li>\n</ul><br/>When the button is pressed, and if this property is not set, Taipy will try to find a callback function called <i>on_login()</i> and invoke it with the parameters listed above.",
                         "signature": [
                             [
                                 "state",
@@ -1523,8 +1589,8 @@
                     },
                     {
                         "name": "users",
-                        "type": "dynamic(list[str|Icon])",
-                        "doc": "The list of users. See the <a href=\"../../binding/#list-of-values\">section on List of Values</a> for details."
+                        "type": "dynamic(list[Union[str,Icon]])",
+                        "doc": "The list of users. See the <a href=\"../../../../userman/gui/binding/#list-of-values\">section on List of Values</a> for details."
                     },
                     {
                         "name": "sender_id",
@@ -1540,7 +1606,7 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "The name of a function that is triggered when the user enters a new message.<br/>All the parameters of that function are optional:\n<ul>\n<li><i>state</i> (<code>State^</code>): the state instance.</li>\n<li><i>var_name</i> (str): the name of the variable bound to the <i>messages</i> property.</li>\n<li><i>payload</i> (dict): the details on this callback's invocation.<br/>This dictionary has the following keys:\n<ul>\n<li><i>action</i>: the name of the action that triggered this callback.</li>\n<li><i>args</i> (list): A list composed of a reason (\"click\" or \"Enter\"), the variable name, message, the user identifier of the sender.</li></ul></li></ul>",
                         "signature": [
                             [
@@ -1565,8 +1631,14 @@
                     },
                     {
                         "name": "height",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "doc": "The maximum height of this chat control, in CSS units."
+                    },
+                    {
+                        "name": "show_sender",
+                        "type": "bool",
+                        "default_value": "True",
+                        "doc": "If False, the sender avatar and name is not displayed."
                     }
                 ]
             }
@@ -1580,7 +1652,7 @@
                 "properties": [
                     {
                         "name": "expanded",
-                        "type": "dynamic(bool|str[])",
+                        "type": "dynamic(Union[bool,list[str]])",
                         "default_value": "True",
                         "doc": "If Boolean and False, only one node can be expanded at one given level. Otherwise this should be set to an array of the node identifiers that need to be expanded."
                     },
@@ -1686,8 +1758,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "Name of a function triggered when a button is pressed.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the dialog.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>This dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: a list where the first element contains the index of the selected label.</li>\n</ul>\n</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "Name of a function triggered when a button is pressed.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the dialog if it has one.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>This dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args: a list where the first element contains the index of the selected label.</li>\n</ul>\n</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -1711,17 +1783,17 @@
                     },
                     {
                         "name": "labels",
-                        "type": " str|list[str]",
+                        "type": "Union[str,list[str]]",
                         "doc": "A list of labels to show in a row of buttons at the bottom of the dialog. The index of the button in the list is reported as args in the <tt>on_action</tt> callback (that index is -1 for the <i>close</i> icon)."
                     },
                     {
                         "name": "width",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "doc": "The width of this dialog, in CSS units."
                     },
                     {
                         "name": "height",
-                        "type": "str|int|float",
+                        "type": "Union[str,int,float]",
                         "doc": "The height of this dialog, in CSS units."
                     }
                 ]
@@ -1775,8 +1847,8 @@
                     },
                     {
                         "name": "on_close",
-                        "type": "Callback",
-                        "doc": "The name of a function that is triggered when this pane is closed (if the user clicks outside of it or presses the Esc key).<br/>All parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str|None): the identifier of the button.</li>\n</ul><br/>If this property is not set, no function is called when this pane is closed.",
+                        "type": "Callable",
+                        "doc": "The name of a function that is triggered when this pane is closed (if the user clicks outside of it or presses the Esc key).<br/>All parameters of that function are optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (optional[str]): the identifier of the close button if it has one.</li>\n</ul><br/>If this property is not set, no function is called when this pane is closed.",
                         "signature": [
                             [
                                 "state",
@@ -1811,6 +1883,12 @@
                         "type": "bool",
                         "default_value": "False",
                         "doc": "If False, the pane covers the page where it appeared and disappears if the user clicks in the page.<br/>If True, the pane appears next to the page. Note that the parent section of the pane must have the <i>flex</i> display mode set. See below for an example using the <code>persistent</code> property."
+                    },
+                    {
+                        "name": "show_button",
+                        "type": "bool",
+                        "default_value": "False",
+                        "doc": "If True and when the pane is closed, a button allowing the pane to be opened is shown."
                     }
                 ]
             }
@@ -1846,13 +1924,13 @@
                     {
                         "name": "lov",
                         "type": "dict[str, any]",
-                        "doc": "The list of values. See the <a href=\"../../binding/#list-of-values\">section on List of Values</a> for details."
+                        "doc": "The list of values. See the <a href=\"../../../../userman/gui/binding/#list-of-values\">section on List of Values</a> for details."
                     },
                     {
                         "name": "adapter",
                         "type": "Function",
                         "default_value": "`lambda x: str(x)`",
-                        "doc": "The function that transforms an element of <i>lov</i> into a <i>tuple(id:str, label:str|Icon)</i>."
+                        "doc": "The function that transforms an element of <i>lov</i> into a <i>tuple(id:str, label:Union[str,Icon])</i>."
                     },
                     {
                         "name": "type",
@@ -1875,7 +1953,7 @@
                 "properties": [
                     {
                         "name": "on_change",
-                        "type": "Callback",
+                        "type": "Callable",
                         "doc": "The name of a function that is triggered when the value is updated.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>var_name (str): the variable name.</li>\n<li>value (any): the new value.</li>\n</ul>",
                         "signature": [
                             [
@@ -1901,7 +1979,7 @@
                 "properties": [
                     {
                         "name": "partial",
-                        "type": "Partial",
+                        "type": "taipy.gui.Partial",
                         "doc": "A Partial object that holds the content of the block.<br/>This should not be defined if <i>page</i> is set."
                     },
                     {
@@ -1941,8 +2019,8 @@
                     },
                     {
                         "name": "on_action",
-                        "type": "Callback",
-                        "doc": "Name of a function that is triggered when a specific key is pressed.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the input.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args (list):\n<ul><li>key name</li><li>variable name</li><li>current value</li></ul>\n</li>\n</ul>\n</li>\n</ul>",
+                        "type": "Callable",
+                        "doc": "Name of a function that is triggered when a specific key is pressed.<br/>The parameters of that function are all optional:\n<ul>\n<li>state (<code>State^</code>): the state instance.</li>\n<li>id (str): the identifier of the control if it has one.</li>\n<li>payload (dict): the details on this callback's invocation.<br/>\nThis dictionary has the following keys:\n<ul>\n<li>action: the name of the action that triggered this callback.</li>\n<li>args (list):\n<ul><li>key name</li><li>variable name</li><li>current value</li></ul>\n</li>\n</ul>\n</li>\n</ul>",
                         "signature": [
                             [
                                 "state",
@@ -1963,6 +2041,12 @@
                         "type": "str",
                         "default_value": "\"Enter\"",
                         "doc": "Semicolon (';')-separated list of supported key names.<br/>Authorized values are Enter, Escape, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12."
+                    },
+                    {
+                        "name": "width",
+                        "type": "Union[str,int]",
+                        "default_value": "None",
+                        "doc": "The width of the element."
                     }
                 ]
             }
@@ -1974,25 +2058,21 @@
                     {
                         "name": "id",
                         "type": "str",
-                        "default_value": "None",
                         "doc": "The identifier that is assigned to the rendered HTML component."
                     },
                     {
                         "name": "properties",
                         "type": "dict[str, any]",
-                        "default_value": "None",
                         "doc": "Bound to a dictionary that contains additional properties for this element."
                     },
                     {
                         "name": "class_name",
                         "type": "dynamic(str)",
-                        "default_value": "None",
                         "doc": "The list of CSS class names that are associated with the generated HTML Element.<br/>These class names are added to the default <code>taipy-&lt;element_type&gt;</code> class name."
                     },
                     {
                         "name": "hover_text",
                         "type": "dynamic(str)",
-                        "default_value": "None",
                         "doc": "The information that is displayed when the user hovers over this element."
                     }
                 ]

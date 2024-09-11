@@ -36,6 +36,7 @@ from taipy.core import (
 )
 from taipy.core import get as core_get
 from taipy.core.config import Config
+from taipy.core.data._file_datanode_mixin import _FileDataNodeMixin
 from taipy.core.data._tabular_datanode_mixin import _TabularDataNodeMixin
 from taipy.core.reason import ReasonCollection
 from taipy.gui._warnings import _warn
@@ -58,6 +59,7 @@ class _EntityType(Enum):
 
 def _get_reason(rc: ReasonCollection, message: str):
     return "" if rc else f"{message}: {rc.reasons}"
+
 
 class _GuiCoreScenarioAdapter(_TaipyBase):
     __INNER_PROPS = ["name"]
@@ -129,16 +131,28 @@ class _GuiCoreScenarioDagAdapter(_TaipyBase):
                 if scenario := core_get(data.id):
                     dag = scenario._get_dag()
                     nodes = {}
-                    for id, node in dag.nodes.items():
-                        entityType = _GuiCoreScenarioDagAdapter.get_entity_type(node)
+                    for id, dag_node in dag.nodes.items():
+                        entityType = _GuiCoreScenarioDagAdapter.get_entity_type(dag_node)
                         cat = nodes.get(entityType)
                         if cat is None:
                             cat = {}
                             nodes[entityType] = cat
                         cat[id] = {
-                            "name": node.entity.get_simple_label(),
-                            "type": node.entity.storage_type() if hasattr(node.entity, "storage_type") else None,
+                            "name": dag_node.entity.get_simple_label(),
+                            "type": dag_node.entity.storage_type()
+                            if hasattr(dag_node.entity, "storage_type")
+                            else None,
                         }
+                    cat = nodes.get(DataNode.__name__)
+                    if cat is None:
+                        cat = {}
+                        nodes[DataNode.__name__] = cat
+                    for id, data_node in scenario.additional_data_nodes.items():
+                        cat[id] = {
+                            "name": data_node.get_simple_label(),
+                            "type": data_node.storage_type(),
+                        }
+
                     return [
                         data.id,
                         nodes,
@@ -225,11 +239,18 @@ class _GuiCoreDatanodeAdapter(_TaipyBase):
                         self.__get_data(datanode),
                         datanode._edit_in_progress,
                         datanode._editor_id,
-                        _get_reason(is_readable(datanode), "Datanode not readable"),
-                        _get_reason(is_editable(datanode), "Datanode not editable"),
+                        _get_reason(is_readable(datanode), "Data node not readable"),
+                        _get_reason(is_editable(datanode), "Data node not editable"),
+                        isinstance(datanode, _FileDataNodeMixin),
+                        f"Data unavailable: {reason.reasons}"
+                        if isinstance(datanode, _FileDataNodeMixin) and not (reason := datanode.is_downloadable())
+                        else "",
+                        f"Data unavailable: {reason.reasons}"
+                        if isinstance(datanode, _FileDataNodeMixin) and not (reason := datanode.is_uploadable())
+                        else "",
                     ]
             except Exception as e:
-                _warn(f"Access to datanode ({data.id if hasattr(data, 'id') else 'No_id'}) failed", e)
+                _warn(f"Access to data node ({data.id if hasattr(data, 'id') else 'No_id'}) failed", e)
 
         return None
 

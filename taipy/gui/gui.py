@@ -26,6 +26,7 @@ import warnings
 from importlib import metadata, util
 from importlib.util import find_spec
 from pathlib import Path
+from threading import Timer
 from types import FrameType, FunctionType, LambdaType, ModuleType, SimpleNamespace
 from urllib.parse import unquote, urlencode, urlparse
 
@@ -51,6 +52,7 @@ if util.find_spec("pyngrok"):
     from pyngrok import ngrok  # type: ignore[reportMissingImports]
 
 from ._default_config import _default_stylekit, default_config
+from ._hook import _Hooks
 from ._page import _Page
 from ._renderers import _EmptyPage
 from ._renderers._markdown import _TaipyMarkdownExtension
@@ -66,7 +68,6 @@ from .data.data_accessor import _DataAccessors
 from .data.data_format import _DataFormat
 from .data.data_scope import _DataScopes
 from .extension.library import Element, ElementLibrary
-from .hook import Hooks
 from .page import Page
 from .partial import Partial
 from .server import _Server
@@ -288,7 +289,7 @@ class Gui:
                 of the main Python file is allowed.
             env_filename (Optional[str]): An optional file from which to load application
                 configuration variables (see the
-                [Configuration](../../userman/configuration/gui-config.md#configuring-the-gui-instance)
+                [Configuration](../../userman/advanced_features/configuration/gui-config.md#configuring-the-gui-instance)
                 section of the User Manual for details.)<br/>
                 The default value is "taipy.gui.env"
             libraries (Optional[List[ElementLibrary]]): An optional list of extension library
@@ -367,7 +368,7 @@ class Gui:
         )
 
         # Init Gui Hooks
-        Hooks()._init(self)
+        _Hooks()._init(self)
 
         if page:
             self.add_page(name=Gui.__root_page_name, page=page)
@@ -607,10 +608,26 @@ class Gui:
             return None
 
     def _handle_connect(self):
-        Hooks().handle_connect(self)
+        _Hooks().handle_connect(self)
 
     def _handle_disconnect(self):
-        Hooks()._handle_disconnect(self)
+        _Hooks()._handle_disconnect(self)
+        if (sid := getattr(request, "sid", None)) and (st_to := self._get_config("state_retention_period", 0)) > 0:
+            for cl_id, sids in self.__client_id_2_sid.items():
+                if sid in sids:
+                    if len(sids) == 1:
+                        Timer(st_to, self._remove_state, [cl_id]).start()
+                    else:
+                        sids.remove(sid)
+                    return
+
+    def _remove_state(self, client_id: str):
+        if (sids := self.__client_id_2_sid.get(client_id, None)) and len(sids) == 1:
+            try:
+                del self.__client_id_2_sid[client_id]
+                self._bindings()._delete_scope(client_id)
+            except Exception as e:
+                _warn(f"Unexpected error removing state {client_id}", e)
 
     def _manage_message(self, msg_type: _WsType, message: dict) -> None:
         try:
@@ -671,7 +688,7 @@ class Gui:
     # To be expanded by inheriting classes
     # this will be used to handle ws messages that is not handled by the base Gui class
     def _manage_external_message(self, msg_type: _WsType, message: dict) -> None:
-        Hooks()._manage_external_message(self, msg_type, message)
+        _Hooks()._manage_external_message(self, msg_type, message)
 
     def __front_end_update(
         self,
@@ -948,20 +965,23 @@ class Gui:
 
     def __upload_files(self):
         self.__set_client_id_in_context()
-        if "var_name" not in request.form:
-            _warn("No var name")
-            return ("No var name", 400)
-        var_name = request.form["var_name"]
+        on_upload_action = request.form.get("on_action", None)
+        var_name = request.form.get("var_name", None)
+        if not var_name and not on_upload_action:
+            _warn("upload files: No var name")
+            return ("upload files: No var name", 400)
+        context = request.form.get("context", None)
+        upload_data = request.form.get("upload_data", None)
         multiple = "multiple" in request.form and request.form["multiple"] == "True"
-        if "blob" not in request.files:
-            _warn("No file part")
-            return ("No file part", 400)
-        file = request.files["blob"]
+        file = request.files.get("blob", None)
+        if not file:
+            _warn("upload files: No file part")
+            return ("upload files: No file part", 400)
         # If the user does not select a file, the browser submits an
         # empty file without a filename.
         if file.filename == "":
-            _warn("No selected file")
-            return ("No selected file", 400)
+            _warn("upload files: No selected file")
+            return ("upload files: No selected file", 400)
         suffix = ""
         complete = True
         part = 0
@@ -990,13 +1010,27 @@ class Gui:
                         return (f"Cannot group file after chunk upload for {file.filename}", 500)
                 # notify the file is uploaded
                 newvalue = str(file_path)
-                if multiple:
+                if multiple and var_name:
                     value = _getscopeattr(self, var_name)
                     if not isinstance(value, t.List):
                         value = [] if value is None else [value]
                     value.append(newvalue)
                     newvalue = value
-                setattr(self._bindings(), var_name, newvalue)
+                with self._set_locals_context(context):
+                    if on_upload_action:
+                        data = {}
+                        if upload_data:
+                            try:
+                                data = json.loads(upload_data)
+                            except Exception:
+                                pass
+                        data["path"] = file_path
+                        file_fn = self._get_user_function(on_upload_action)
+                        if not callable(file_fn):
+                            file_fn = _getscopeattr(self, on_upload_action)
+                        self._call_function_with_state(file_fn, ["file_upload", {"args": [data]}])
+                    else:
+                        setattr(self._bindings(), var_name, newvalue)
         return ("", 200)
 
     _data_request_counter = 1
@@ -1897,7 +1931,7 @@ class Gui:
         new_page = _Page()
         new_page._route = name
         new_page._renderer = page
-        new_page._style = style
+        new_page._style = style or page._get_style()
         # Append page to _config
         self._config.pages.append(new_page)
         self._config.routes.append(name)
@@ -1905,7 +1939,7 @@ class Gui:
         if name == Gui.__root_page_name:
             self._config.root_page = new_page
         # Validate Page
-        Hooks().validate_page(self, page)
+        _Hooks().validate_page(self, page)
         # Update locals context
         self.__locals_context.add(page._get_module_name(), page._get_locals())
         # Update variable directory
@@ -1916,7 +1950,7 @@ class Gui:
             page._notebook_gui = self
             page._notebook_page = new_page
         # add page to hook
-        Hooks().add_page(self, page)
+        _Hooks().add_page(self, page)
 
     def add_pages(self, pages: t.Optional[t.Union[t.Mapping[str, t.Union[str, Page]], str]] = None) -> None:
         """Add several pages to the Graphical User Interface.
@@ -2011,7 +2045,7 @@ class Gui:
     ) -> Partial:
         """Create a new `Partial^`.
 
-        The [User Manual section on Partials](../../userman/gui/pages/index.md#partials) gives details on
+        The [User Manual section on Partials](../../userman/gui/pages/partial/index.md) gives details on
         when and how to use this class.
 
         Arguments:
@@ -2381,8 +2415,8 @@ class Gui:
             elif script_file.is_dir() and (script_file / "taipy.css").exists():
                 css_file = "taipy.css"
         if css_file is None:
-             script_file = script_file.with_name("taipy").with_suffix(".css")
-             if script_file.exists():
+            script_file = script_file.with_name("taipy").with_suffix(".css")
+            if script_file.exists():
                 css_file = f"{script_file.stem}.css"
         self.__css_file = css_file
 
@@ -2586,7 +2620,7 @@ class Gui:
         URL that `Gui` serves. The default is to listen to the *localhost* address
         (127.0.0.1) on the port number 5000. However, the configuration of this `Gui`
         object may impact that (see the
-        [Configuration](../../userman/configuration/gui-config.md#configuring-the-gui-instance)
+        [Configuration](../../userman/advanced_features/configuration/gui-config.md#configuring-the-gui-instance)
         section of the User Manual for details).
 
         Arguments:
@@ -2611,8 +2645,8 @@ class Gui:
                 ignored.<br/>
                 Also note that setting the *debug* argument to True forces *async_mode* to "threading".
             **kwargs (dict[str, any]): Additional keyword arguments that configure how this `Gui` is run.
-                Please refer to the
-                [Configuration section](../../userman/configuration/gui-config.md#configuring-the-gui-instance)
+                Please refer to the gui config section
+                [page](../../userman/advanced_features/configuration/gui-config.md#configuring-the-gui-instance)
                 of the User Manual for more information.
 
         Returns:
@@ -2634,7 +2668,7 @@ class Gui:
         # --------------------------------------------------------------------------------
 
         # setup run function with gui hooks
-        Hooks().run(self, **kwargs)
+        _Hooks().run(self, **kwargs)
 
         app_config = self._config.config
 
@@ -2734,6 +2768,7 @@ class Gui:
             run_in_thread=app_config["run_in_thread"],
             allow_unsafe_werkzeug=app_config["allow_unsafe_werkzeug"],
             notebook_proxy=app_config["notebook_proxy"],
+            port_auto_ranges=app_config["port_auto_ranges"],
         )
 
     def reload(self):  # pragma: no cover
